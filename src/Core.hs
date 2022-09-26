@@ -3,6 +3,9 @@ module Core where
 import RIO
 
 import qualified RIO.Map as Map
+import qualified RIO.List as List
+
+import qualified Docker
 
 data Pipeline
   = Pipeline
@@ -14,7 +17,7 @@ data Step
   = Step
       { name :: StepName
       , commands :: NonEmpty Text
-      , image :: Image
+      , image :: Docker.Image
       }
   deriving (Eq, Show)
 
@@ -27,24 +30,35 @@ data Build
   deriving (Eq, Show)
 
 data StepResult
-  = StepFailed ContainerExitCode
+  = StepFailed Docker.ContainerExitCode
   | StepSucceeded
   deriving (Eq, Show)
 
 newtype ContainerExitCode = ContainerExitCode Int
   deriving (Eq, Show)
 
-exitCodeToInt :: ContainerExitCode -> Int
-exitCodeToInt (ContainerExitCode code) = code
-
-exitCodeToStepResult :: ContainerExitCode -> StepResult
+exitCodeToStepResult :: Docker.ContainerExitCode -> StepResult
 exitCodeToStepResult exit =
-  if exitCodeToInt exit == 0
+  if Docker.exitCodeToInt exit == 0
     then StepSucceeded
     else StepFailed exit
 
+{- Brief explanation: if any steps failed, then we can consider the build to have failed as well. 
+Otherwise we go through the steps in the pipeline and find one which hasn’t run yet (not in the completedSteps Map). 
+If we can’t find a step, then they all succeeded so the build is successful.
+-}
 buildHasNextStep :: Build -> Either BuildResult Step
-buildHasNextStep build = undefined
+buildHasNextStep build =
+  if allSucceeded
+    then case nextStep of
+      Just step -> Right step
+      Nothing -> Left BuildSucceeded
+    else Left BuildFailed
+  where
+    allSucceeded = List.all ((==) StepSucceeded) build.completedSteps
+    nextStep = List.find f build.pipeline.steps
+    f step = not $ Map.member step.name build.completedSteps
+
 
 data BuildState
   = BuildReady
@@ -75,7 +89,7 @@ progress build =
           pure $ build{state = BuildRunning s}
     BuildRunning state -> do
       -- We'll assume the container exited with a 0 status code.
-      let exit = ContainerExitCode 0
+      let exit = Docker.ContainerExitCode 0
           result = exitCodeToStepResult exit
 
       pure build
@@ -94,5 +108,3 @@ newtype Image = Image Text
   
 stepNameToText :: StepName -> Text
 stepNameToText (StepName step) = step
-imageToText :: Image -> Text
-imageToText (Image image) = image
