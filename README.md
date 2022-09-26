@@ -1,0 +1,1 @@
+Following the book https://leanpub.com/simple-haskell-book
