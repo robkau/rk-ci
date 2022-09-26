@@ -103,8 +103,5 @@ progress build =
 newtype StepName = StepName Text
   deriving (Eq, Show, Ord)
 
-newtype Image = Image Text
-  deriving (Eq, Show)
-  
 stepNameToText :: StepName -> Text
 stepNameToText (StepName step) = step
