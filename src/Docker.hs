@@ -43,7 +43,17 @@ createContainer options = do
              pure $ ContainerId cId
   res <- HTTP.httpBS req
   parseResponse res parser
-  -- Dump the response to stdout to check what we're getting back.
+  
+startContainer :: ContainerId -> IO ()
+startContainer container = do
+  manager <- Socket.newManager "/var/run/docker.sock"
+  let path
+        = "/v1.40/containers/" <> containerIdToText container <> "/start"
+  let req = HTTP.defaultRequest
+          & HTTP.setRequestManager manager
+          & HTTP.setRequestPath (encodeUtf8 path)
+          & HTTP.setRequestMethod "POST"
+  void $ HTTP.httpBS req
 
 parseResponse
   :: HTTP.Response ByteString
