@@ -16,7 +16,7 @@ newtype ContainerId = ContainerId Text
 data Service
   = Service 
       { createContainer :: CreateContainerOptions -> IO ContainerId,
-        startContainer :: ContainerId -> IO (),
+        startContainer :: ContainerId -> IO ()
       }
 
 createService :: IO Service
