@@ -7,6 +7,7 @@ import Test.Hspec
 
 import qualified RIO.Map as Map
 import qualified RIO.NonEmpty.Partial as NonEmpty.Partial
+import qualified System.Process.Typed as Process
 
 import qualified Docker
   
@@ -57,6 +58,10 @@ runBuild docker build = do
 main :: IO ()
 main = hspec do
   docker <- runIO Docker.createService
-  describe "Quad CI" do
+  beforeAll cleanupDocker $ describe "Quad CI" do
     it "should run a build (success)" do
       testRunSuccess docker
+      
+cleanupDocker :: IO ()
+cleanupDocker = void do
+  Process.readProcessStdout "docker rm -f $(docker ps -aq --filter \"label=quad\")"
