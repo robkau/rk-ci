@@ -37,14 +37,14 @@ testBuild = Build
   , state = BuildReady
   , completedSteps = mempty
   }
-  
+
 -- First test
 testRunSuccess :: Docker.Service -> IO ()
 testRunSuccess docker = do
   result <- runBuild docker testBuild
   result.state `shouldBe` BuildFinished BuildSucceeded
   Map.elems result.completedSteps `shouldBe` [StepSucceeded, StepSucceeded]
-  
+
 runBuild :: Docker.Service -> Build -> IO Build
 runBuild docker build = do
   newBuild <- Core.progress docker build
@@ -58,10 +58,10 @@ runBuild docker build = do
 main :: IO ()
 main = hspec do
   docker <- runIO Docker.createService
-  beforeAll cleanupDocker $ describe "Quad CI" do
+  beforeAll cleanupDocker $ describe "rk-ci" do
     it "should run a build (success)" do
       testRunSuccess docker
-      
+
 cleanupDocker :: IO ()
 cleanupDocker = void do
-  Process.readProcessStdout "docker rm -f $(docker ps -aq --filter \"label=quad\")"
+  Process.readProcessStdout "docker rm -f $(docker ps -aq --filter \"label=rkci\")"

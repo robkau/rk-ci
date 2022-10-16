@@ -12,9 +12,9 @@ import qualified Socket
 
 newtype ContainerId = ContainerId Text
   deriving (Eq, Show)
-  
+
 data Service
-  = Service 
+  = Service
       { createContainer :: CreateContainerOptions -> IO ContainerId,
         startContainer :: ContainerId -> IO ()
       }
@@ -23,12 +23,12 @@ createService :: IO Service
 createService = do
   pure Service
     { createContainer = createContainer_ ,
-      startContainer = startContainer_ 
+      startContainer = startContainer_
     }
-  
+
 containerIdToText :: ContainerId -> Text
 containerIdToText (ContainerId c) = c
-  
+
 data CreateContainerOptions
   = CreateContainerOptions
       { image :: Image
@@ -41,7 +41,7 @@ createContainer_ options = do
   let body = Aeson.object
                [ ("Image", Aeson.toJSON image)
                , ("Tty", Aeson.toJSON True)
-               , ("Labels", Aeson.object [("quad", "")])
+               , ("Labels", Aeson.object [("rkci", "")])
                , ("Cmd", "echo hello")
                , ("Entrypoint", Aeson.toJSON [Aeson.String "/bin/sh",
                "-c"])
@@ -56,7 +56,7 @@ createContainer_ options = do
              pure $ ContainerId cId
   res <- HTTP.httpBS req
   parseResponse res parser
-  
+
 startContainer_ :: ContainerId -> IO ()
 startContainer_ container = do
   manager <- Socket.newManager "/var/run/docker.sock"
