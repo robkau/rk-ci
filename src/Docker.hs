@@ -15,19 +15,27 @@ newtype ContainerId = ContainerId Text
 
 data Service
   = Service
-      { createContainer :: CreateContainerOptions -> IO ContainerId,
-        startContainer :: ContainerId -> IO ()
+      { createContainer :: CreateContainerOptions -> IO ContainerId
+      ,  startContainer :: ContainerId -> IO ()
+      ,  containerStatus :: ContainerId -> IO ContainerStatus
       }
 
 createService :: IO Service
 createService = do
   pure Service
     { createContainer = createContainer_ ,
-      startContainer = startContainer_
+      startContainer = startContainer_ ,
+      containerStatus = undefined -- TODO
     }
 
 containerIdToText :: ContainerId -> Text
 containerIdToText (ContainerId c) = c
+
+data ContainerStatus
+  = ContainerRunning
+  | ContainerExited ContainerExitCode
+  | ContainerOther Text
+  deriving (Eq, Show)
 
 data CreateContainerOptions
   = CreateContainerOptions

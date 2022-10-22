@@ -43,8 +43,8 @@ exitCodeToStepResult exit =
     then StepSucceeded
     else StepFailed exit
 
-{- Brief explanation: if any steps failed, then we can consider the build to have failed as well. 
-Otherwise we go through the steps in the pipeline and find one which hasn’t run yet (not in the completedSteps Map). 
+{- Brief explanation: if any steps failed, then we can consider the build to have failed as well.
+Otherwise we go through the steps in the pipeline and find one which hasn’t run yet (not in the completedSteps Map).
 If we can’t find a step, then they all succeeded so the build is successful.
 -}
 buildHasNextStep :: Build -> Either BuildResult Step
@@ -69,12 +69,14 @@ data BuildState
 data BuildRunningState
   = BuildRunningState
       { step :: StepName
+      , container :: Docker.ContainerId
       }
   deriving (Eq, Show)
 
 data BuildResult
   = BuildSucceeded
   | BuildFailed
+  | BuildUnexpectedState Text
   deriving (Eq, Show)
 
 progress :: Docker.Service -> Build -> IO Build
@@ -88,10 +90,30 @@ progress docker build =
           let options = Docker.CreateContainerOptions step.image
           container <- docker.createContainer options
           docker.startContainer container
-          let s = BuildRunningState { step = step.name }
+          let s = BuildRunningState
+                    { step = step.name
+                    , container = container
+                    }
           pure $ build{state = BuildRunning s}
     BuildRunning state -> do
-      -- We'll assume the container exited with a 0 status code.
+      status <- docker.containerStatus state.container
+
+      case status of
+        Docker.ContainerRunning ->
+          -- If it's running, wait for it to exit
+          pure build
+        Docker.ContainerExited exit -> do
+          let result = exitCodeToStepResult exit
+          pure build
+            { completedSteps
+                = Map.insert state.step result build.completedSteps
+            , state = BuildReady
+            }
+        Docker.ContainerOther other -> do
+          let s = BuildUnexpectedState other
+          pure build{state = BuildFinished s}
+
+
       let exit = Docker.ContainerExitCode 0
           result = exitCodeToStepResult exit
 

@@ -35,6 +35,16 @@ testRunSuccess runner = do
   result <- runner.runBuild build
   result.state `shouldBe` BuildFinished BuildSucceeded
   Map.elems result.completedSteps `shouldBe` [StepSucceeded, StepSucceeded]
+  
+testRunFailure :: Runner.Service -> IO ()
+testRunFailure runner = do
+  build <- runner.prepareBuild $ makePipeline
+    [ makeStep "First step" "ubuntu" ["date"]
+    , makeStep "Second step, should fail" "ubuntu" ["exit 1"]
+    ]
+  result <- runner.runBuild build
+  result.state `shouldBe` BuildFinished BuildFailed
+  Map.elems result.completedSteps `shouldBe` [StepSucceeded, StepFailed (Docker.ContainerExitCode 1)]
 
 runBuild :: Docker.Service -> Build -> IO Build
 runBuild docker build = do
@@ -53,6 +63,8 @@ main = hspec do
   beforeAll cleanupDocker $ describe "rk-ci" do
     it "should run a build (success)" do
       testRunSuccess runner
+    it "should run a build (failure)" do
+      testRunFailure runner
 
 cleanupDocker :: IO ()
 cleanupDocker = void do
