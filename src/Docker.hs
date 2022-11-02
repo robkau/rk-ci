@@ -50,6 +50,7 @@ data ContainerStatus
 data CreateContainerOptions
   = CreateContainerOptions
       { image :: Image
+      , script :: Text
       }
 
 createContainer_ :: RequestBuilder -> CreateContainerOptions -> IO ContainerId
@@ -60,9 +61,9 @@ createContainer_ makeReq options = do
                [ ("Image", Aeson.toJSON image)
                , ("Tty", Aeson.toJSON True)
                , ("Labels", Aeson.object [("rkci", "")])
-               , ("Cmd", "echo hello")
-               , ("Entrypoint", Aeson.toJSON [Aeson.String "/bin/sh",
-               "-c"])
+               , ("Entrypoint", Aeson.toJSON [Aeson.String "/bin/sh", "-c"])
+               , ("Cmd", "echo \"$RKCI_SCRIPT\" | /bin/sh")
+               , ("Env", Aeson.toJSON ["RKCI_SCRIPT=" <> options.script])
                ]
   let req = makeReq "/containers/create"
           & HTTP.setRequestMethod "POST"
@@ -82,7 +83,7 @@ startContainer_ makeReq container = do
   let req = makeReq path
           & HTTP.setRequestMethod "POST"
   void $ HTTP.httpBS req
-  
+
 containerStatus_ :: RequestBuilder -> ContainerId -> IO ContainerStatus
 containerStatus_ makeReq container = do
   let parser = Aeson.withObject "container-inspect" $ \o -> do
@@ -94,7 +95,7 @@ containerStatus_ makeReq container = do
             code <- state .: "ExitCode"
             pure $ ContainerExited (ContainerExitCode code)
           other -> pure $ ContainerOther other
-          
+
   let req = makeReq $ "/containers/" <> containerIdToText container <> "/json"
   res <- HTTP.httpBS req
   parseResponse res parser

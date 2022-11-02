@@ -2,8 +2,10 @@ module Core where
 
 import RIO
 
-import qualified RIO.Map as Map
 import qualified RIO.List as List
+import qualified RIO.Map as Map
+import qualified RIO.NonEmpty as NonEmpty
+import qualified RIO.Text as Text
 
 import qualified Docker
 
@@ -87,7 +89,12 @@ progress docker build =
         Left result ->
           pure $ build{state = BuildFinished result}
         Right step -> do
-          let options = Docker.CreateContainerOptions step.image
+          let script = Text.unlines $ ["set -ex"] <> NonEmpty.toList step.commands
+          let options = 
+                Docker.CreateContainerOptions 
+                  { image = step.image
+                  , script = script
+                  }
           container <- docker.createContainer options
           docker.startContainer container
           let s = BuildRunningState
@@ -113,15 +120,6 @@ progress docker build =
           let s = BuildUnexpectedState other
           pure build{state = BuildFinished s}
 
-
-      let exit = Docker.ContainerExitCode 0
-          result = exitCodeToStepResult exit
-
-      pure build
-        { state = BuildReady
-        , completedSteps
-          = Map.insert state.step result build.completedSteps
-        }
     BuildFinished _ ->
       pure build
 

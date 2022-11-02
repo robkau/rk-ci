@@ -43,18 +43,10 @@ testRunFailure runner = do
     , makeStep "Second step, should fail" "ubuntu" ["exit 1"]
     ]
   result <- runner.runBuild build
+ 
   result.state `shouldBe` BuildFinished BuildFailed
   Map.elems result.completedSteps `shouldBe` [StepSucceeded, StepFailed (Docker.ContainerExitCode 1)]
-
-runBuild :: Docker.Service -> Build -> IO Build
-runBuild docker build = do
-  newBuild <- Core.progress docker build
-  case newBuild.state of
-    BuildFinished _ ->
-      pure newBuild
-    _ -> do
-      threadDelay (1 * 1000 * 1000)
-      runBuild docker newBuild
+  
 
 main :: IO ()
 main = hspec do
